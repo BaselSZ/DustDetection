@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import rasterio
 import json
+import geopandas as gpd
 from shapely.geometry import mapping, Polygon
 from rasterio.features import shapes
 from rasterio.transform import from_origin
@@ -10,6 +11,7 @@ from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
 #Crop a specific area from a TIFF file and detect dust areas in it
 tiff = "C:/Users/Basel/OneDrive/Desktop/msg2-iodc-dust-cog/msg2-iodc-dust-cog/2025-06-15/2025-06-15T00-12-00.tif"
+tiff = tiff.replace("C:/Users/Basel/OneDrive/Desktop", "/host")
 # KSA bounding box in EPSG:3857 (Web Mercator)
 ksa_bounds = [3540000, 1560000, 6330000, 4090000]
 
@@ -23,12 +25,15 @@ with rasterio.open(tiff) as src:
         "width": data.shape[2],
         "transform": src.window_transform(window)
     })
-with rasterio.open("C:/Users/Basel/OneDrive/Desktop/msg2-iodc-dust-cog/msg2-iodc-dust-cog/2025-06-15/2025-06-15T00-12-00_cropped.tif", "w", **profile) as dst:
+    #saving the cropped image
+tiff = tiff.replace(".tif", "_cropped.tif")
+with rasterio.open(tiff, "w", **profile) as dst:
     dst.write(data)
     print(f"✅ Created cropped image at: {tiff}")
-    
+
 #get the dust areas from the cropped TIFF file
 tiff_path = "C:/Users/Basel/OneDrive/Desktop/msg2-iodc-dust-cog/msg2-iodc-dust-cog/2025-06-15/2025-06-15T00-12-00_cropped.tif"
+tiff_path = tiff_path.replace("C:/Users/Basel/OneDrive/Desktop", "/host")
 with rasterio.open(tiff_path) as src:
     image = src.read([1, 2, 3])  
     transform = src.transform
@@ -44,26 +49,19 @@ lower_color = np.array([140, 40, 40])
 upper_color = np.array([170, 255, 255])
 dust_mask = cv2.inRange(hsv, lower_color, upper_color)
 
-kernel = np.ones((5, 5), np.uint8)
-dust_mask_clean = cv2.morphologyEx(dust_mask, cv2.MORPH_OPEN, kernel)
-dust_mask_clean = cv2.morphologyEx(dust_mask_clean, cv2.MORPH_CLOSE, kernel)
-results = []
-for geom, val in shapes(dust_mask_clean, mask=dust_mask_clean.astype(bool), transform=transform):
-    if val == 255:  # only foreground
-        results.append({
-            "type": "Feature",
-            "geometry": geom,
-            "properties": {}
-        })
+binary_mask = (dust_mask > 0).astype(np.uint8)
 
-geojson = {
-    "type": "FeatureCollection",
-    "features": results
-}
-# Save to file
-geojson_path = tiff_path.replace(".tif", "_dust.geojson")
-with open(geojson_path, "w") as f:
-    json.dump(geojson, f)
+# Extract polygon shapes from the binary mask
+results = (
+    {"properties": {"value": v}, "geometry": s}
+    for s, v in shapes(binary_mask, mask=binary_mask, transform=transform)
+    if v == 1
+)
+
+# Save polygons as GeoJSON
+gdf = gpd.GeoDataFrame.from_features(results, crs=crs).to_crs("EPSG:4326")
+geojson_path = tiff_path.replace('.tif', '_dust.geojson').replace('.tiff', '_dust.geojson')
+gdf.to_file(geojson_path, driver='GeoJSON')
 
 plt.figure(figsize=(12, 6))
 plt.subplot(1, 2, 1)
@@ -72,7 +70,7 @@ plt.title("original image")
 plt.axis('off')
 
 plt.subplot(1, 2, 2)
-plt.imshow(dust_mask_clean, cmap='gray')
+plt.imshow(dust_mask, cmap='gray')
 plt.title("Detected Dust Areas")
 plt.axis('off')
 plt.tight_layout()
