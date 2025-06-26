@@ -1,0 +1,10 @@
+services:
+  dustapp:
+    image: dustimage
+    volumes:
+      - dust-data:/app/data 
+
+volumes:
+  dust-data:
+    external: true         
+    name: dust-data        

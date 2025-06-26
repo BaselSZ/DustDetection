@@ -9,9 +9,11 @@ from rasterio.features import shapes
 from rasterio.transform import from_origin
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
+import os
 #Crop a specific area from a TIFF file and detect dust areas in it
-tiff = "C:/Users/Basel/OneDrive/Desktop/msg2-iodc-dust-cog/msg2-iodc-dust-cog/2025-06-15/2025-06-15T00-12-00.tif"
-tiff = tiff.replace("C:/Users/Basel/OneDrive/Desktop", "/host")
+print("Files in /app/data:")
+print(os.listdir("/app/data"))
+tiff = "/app/data/2025-06-15T00-12-00.tif"
 # KSA bounding box in EPSG:3857 (Web Mercator)
 ksa_bounds = [3540000, 1560000, 6330000, 4090000]
 
@@ -32,8 +34,7 @@ with rasterio.open(tiff, "w", **profile) as dst:
     print(f"✅ Created cropped image at: {tiff}")
 
 #get the dust areas from the cropped TIFF file
-tiff_path = "C:/Users/Basel/OneDrive/Desktop/msg2-iodc-dust-cog/msg2-iodc-dust-cog/2025-06-15/2025-06-15T00-12-00_cropped.tif"
-tiff_path = tiff_path.replace("C:/Users/Basel/OneDrive/Desktop", "/host")
+tiff_path = "/app/data/2025-06-15T00-12-00_cropped.tif"
 with rasterio.open(tiff_path) as src:
     image = src.read([1, 2, 3])  
     transform = src.transform
