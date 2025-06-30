@@ -1,8 +1,10 @@
 services:
   dustapp:
+    build: .
     image: dustimage
     volumes:
       - dust-data:/app/data 
+    command: tail -f /dev/null
 
 volumes:
   dust-data:
