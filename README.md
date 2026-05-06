@@ -5,5 +5,5 @@ detects dust-like areas using color segmentation,
 and exports results as GeoJSON for GIS analysis.
 
 # Can run as:
-Docker service
+Docker service<br>
 GUI application
